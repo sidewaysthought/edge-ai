@@ -1,2 +1,1 @@
-# edge-ai
-A browser client-side web app for chatting with an LLM
+This repository is empty. Any task executed on it should be considered a new capability and needs to be created.
