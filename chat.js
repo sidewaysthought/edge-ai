@@ -1,69 +1,39 @@
-$(document).ready(function () {
-    const chatInterface = $("#chat-interface");
-    const messageInput = $("#message-input");
-    const sendButton = $("#send-button");
+import { pipeline } from '@huggingface/transformers';
 
-    // Initialize the chat interface and load the LLM using transformers.js
-    async function initializeChat() {
-        const model = await transformers.loadModel("distilbert-base-uncased");
-        const tokenizer = await transformers.loadTokenizer("distilbert-base-uncased");
+async function initializeModel() {
+    const chatPipeline = await pipeline('text-generation', 'onnx-community/Llama-3.2-1B-Instruct-q4f16', {
+        quantized: true,
+        device: 'webgpu' // Use 'cpu' if WebGPU is not supported
+    });
+    return chatPipeline;
+}
 
-        sendButton.on("click", async () => {
-            const userMessage = messageInput.val();
-            if (userMessage.trim() === "") return;
+document.getElementById('send-button').addEventListener('click', async () => {
+    const userInput = document.getElementById('user-input').value;
+    if (userInput.trim() === '') return;
 
-            addMessageToChat("user", userMessage);
-            messageInput.val("");
+    // Display user message
+    displayMessage('user', userInput);
 
-            const inputIds = tokenizer.encode(userMessage);
-            const output = await model.generate(inputIds);
-            const botMessage = tokenizer.decode(output[0]);
+    // Generate and display model response
+    const response = await generateResponse(userInput);
+    displayMessage('bot', response);
 
-            addMessageToChat("bot", botMessage);
-            saveChatHistory();
-        });
-
-        loadChatHistory();
-    }
-
-    // Implement WebGPU support for hardware acceleration
-    async function initializeWebGPU() {
-        if (!navigator.gpu) {
-            console.error("WebGPU is not supported on this browser.");
-            return;
-        }
-
-        const adapter = await navigator.gpu.requestAdapter();
-        const device = await adapter.requestDevice();
-
-        // Additional WebGPU setup code can be added here
-    }
-
-    // Add functions to handle sending and receiving messages
-    function addMessageToChat(sender, message) {
-        const messageBubble = $("<div>").addClass("message-bubble").addClass(sender).text(message);
-        chatInterface.append(messageBubble);
-        chatInterface.scrollTop(chatInterface.prop("scrollHeight"));
-    }
-
-    // Save and retrieve chat history from localStorage
-    function saveChatHistory() {
-        const messages = chatInterface.find(".message-bubble").map(function () {
-            return {
-                sender: $(this).hasClass("user") ? "user" : "bot",
-                message: $(this).text(),
-            };
-        }).get();
-        localStorage.setItem("chatHistory", JSON.stringify(messages));
-    }
-
-    function loadChatHistory() {
-        const chatHistory = JSON.parse(localStorage.getItem("chatHistory") || "[]");
-        chatHistory.forEach((message) => {
-            addMessageToChat(message.sender, message.message);
-        });
-    }
-
-    initializeChat();
-    initializeWebGPU();
+    // Clear input field
+    document.getElementById('user-input').value = '';
 });
+
+async function generateResponse(input) {
+    const chatPipeline = await initializeModel();
+    const output = await chatPipeline(input, { max_new_tokens: 50 });
+    return output[0].generated_text;
+}
+
+function displayMessage(sender, message) {
+    const chatWindow = document.getElementById('chat-window');
+    const messageElement = document.createElement('div');
+    messageElement.className = sender === 'user' ? 'user-message' : 'bot-message';
+    messageElement.textContent = message;
+    chatWindow.appendChild(messageElement);
+    chatWindow.scrollTop = chatWindow.scrollHeight;
+}
