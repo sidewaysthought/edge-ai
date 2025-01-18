@@ -1,9 +1,9 @@
-import { pipeline } from '@huggingface/transformers';
+const { pipeline } = window.transformers;
 
 async function initializeModel() {
     const chatPipeline = await pipeline('text-generation', 'onnx-community/Llama-3.2-1B-Instruct-q4f16', {
         quantized: true,
-        device: 'webgpu' // Use 'cpu' if WebGPU is not supported
+        device: 'webgpu'
     });
     return chatPipeline;
 }
